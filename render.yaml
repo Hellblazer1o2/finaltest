@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: idearpit
+    env: node
+    plan: free
+    buildCommand: npm run build:simple
+    startCommand: npm run start:prod
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: postgresql://neondb_owner:npg_fgahGqk3trW1@ep-lingering-smoke-a70s84j6-pooler.ap-southeast-2.aws.neon.tech/neondb?sslmode=require&channel_binding=require
+      - key: JWT_SECRET
+        generateValue: true
+    healthCheckPath: /
+    autoDeploy: true
+
+databases:
+  - name: idearpit-db
+    plan: free
+    databaseName: idearpit
+    user: idearpit_user
