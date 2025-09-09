@@ -9,6 +9,7 @@ interface User {
   id: string
   username: string
   email: string
+  role: string
   warnings: number
   isDisqualified: boolean
   disqualifiedAt: string | null

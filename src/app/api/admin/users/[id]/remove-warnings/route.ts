@@ -6,7 +6,7 @@ export const runtime = 'nodejs'
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const token = request.cookies.get('auth-token')?.value
@@ -27,7 +27,7 @@ export async function POST(
       )
     }
 
-    const userId = params.id
+    const { id: userId } = await params
 
     // Update user to remove all warnings and disqualification
     const updatedUser = await prisma.user.update({

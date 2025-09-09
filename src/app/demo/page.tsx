@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { ClientCodeRunner } from '@/components/ClientCodeRunner';
-import { runCode, ClientExecutionResult } from '@/lib/clientCodeExecutor';
+import { ClientExecutionResult } from '@/lib/clientCodeExecutor';
 
 export default function DemoPage() {
   const [selectedLanguage, setSelectedLanguage] = useState<'python' | 'cpp' | 'nodejs'>('python');
@@ -81,7 +81,7 @@ const person = {
     name: "John",
     age: 30,
     greet: function() {
-        return `Hello, I'm ${this.name} and I'm ${this.age} years old.`;
+        return "Hello, I'm " + this.name + " and I'm " + this.age + " years old.";
     }
 };
 
@@ -220,7 +220,7 @@ console.log(person.greet());`
                     Ready to Execute Code
                   </h3>
                   <p className="text-gray-500">
-                    Write some code and click "Run" to see the results here.
+                    Write some code and click &quot;Run&quot; to see the results here.
                   </p>
                 </div>
               )}

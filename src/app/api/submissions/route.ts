@@ -111,6 +111,8 @@ export async function POST(request: NextRequest) {
       status: finalStatus,
       executionTime: totalExecutionTime,
       memoryUsage: maxMemoryUsage,
+      timeComplexity: null,
+      spaceComplexity: null,
       score,
       testResults,
     }
@@ -122,9 +124,9 @@ export async function POST(request: NextRequest) {
         status: executionResult.status as 'PENDING' | 'ACCEPTED' | 'WRONG_ANSWER' | 'TIME_LIMIT_EXCEEDED' | 'MEMORY_LIMIT_EXCEEDED' | 'RUNTIME_ERROR',
         executionTime: executionResult.executionTime,
         memoryUsage: executionResult.memoryUsage,
-        timeComplexity: executionResult.timeComplexity,
-        spaceComplexity: executionResult.spaceComplexity,
-        score: executionResult.score,
+        timeComplexity: executionResult.timeComplexity || null,
+        spaceComplexity: executionResult.spaceComplexity || null,
+        score: executionResult.score || 0,
       },
     })
 

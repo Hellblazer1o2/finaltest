@@ -30,7 +30,7 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get('status')
 
     // Build where clause
-    const where: any = {}
+    const where: Record<string, string> = {}
     if (problemId) where.problemId = problemId
     if (userId) where.userId = userId
     if (status) where.status = status
