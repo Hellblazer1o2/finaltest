@@ -89,6 +89,24 @@ npm run build
 npm start
 ```
 
+### Vercel Deployment
+1. **Connect to Vercel:**
+   - Push your code to GitHub
+   - Connect your repository to Vercel
+   - Vercel will automatically detect Next.js
+
+2. **Set Environment Variables:**
+   ```
+   DATABASE_URL=postgresql://username:password@host:5432/database_name
+   JWT_SECRET=your-super-secret-jwt-key-here
+   NEXTAUTH_URL=https://your-app.vercel.app
+   NEXTAUTH_SECRET=your-nextauth-secret-here
+   ```
+
+3. **Deploy:**
+   - Vercel will automatically run `prisma generate` during build
+   - Your app will be available at `https://your-app.vercel.app`
+
 ### Docker
 ```bash
 docker build -t igenium-ide .
