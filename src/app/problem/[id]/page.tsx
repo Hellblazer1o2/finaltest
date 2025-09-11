@@ -43,8 +43,21 @@ export default function ProblemPage() {
     }>
     error?: string
   } | null>(null)
-  const [activeTab, setActiveTab] = useState<'problem' | 'code' | 'test'>('code')
+  const [activeTab, setActiveTab] = useState<'problem' | 'code' | 'test' | 'history'>('code')
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
+  const [showFailurePopup, setShowFailurePopup] = useState(false)
+  const [submissionResult, setSubmissionResult] = useState<{
+    status: string
+    score: number
+    submittedAt?: string
+    testResults?: Array<{
+      testCase: number
+      passed: boolean
+      expectedOutput: string
+      actualOutput: string
+      error?: string
+    }>
+  } | null>(null)
   const [roundEndTime, setRoundEndTime] = useState<Date | null>(null)
   const [userStatus, setUserStatus] = useState<{
     hasPassed: boolean
@@ -66,6 +79,36 @@ export default function ProblemPage() {
   } | null>(null)
   const [isDisqualified, setIsDisqualified] = useState(false)
   const [isClientSideExecution, setIsClientSideExecution] = useState(false)
+  const [currentTime, setCurrentTime] = useState(new Date())
+  const [submissionHistory, setSubmissionHistory] = useState<Array<{
+    id: string
+    status: string
+    score: number
+    submittedAt: string
+    language: string
+  }>>([])
+
+  // Helper function to get relative time
+  const getRelativeTime = (dateString: string): string => {
+    const now = new Date()
+    const submissionDate = new Date(dateString)
+    const diffInSeconds = Math.floor((now.getTime() - submissionDate.getTime()) / 1000)
+
+    if (diffInSeconds < 60) {
+      return `${diffInSeconds} seconds ago`
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60)
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600)
+      return `${hours} hour${hours > 1 ? 's' : ''} ago`
+    } else if (diffInSeconds < 604800) {
+      const days = Math.floor(diffInSeconds / 86400)
+      return `${days} day${days > 1 ? 's' : ''} ago`
+    } else {
+      return submissionDate.toLocaleDateString()
+    }
+  }
 
   // Check if current language supports client-side execution
   const isClientSideSupported = (language: string): boolean => {
@@ -141,6 +184,18 @@ export default function ProblemPage() {
     }
   }, [])
 
+  const fetchSubmissionHistory = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/problems/${params.id}/submissions`)
+      if (response.ok) {
+        const data = await response.json()
+        setSubmissionHistory(data.submissions || [])
+      }
+    } catch (error) {
+      console.error('Failed to fetch submission history:', error)
+    }
+  }, [params.id])
+
   useEffect(() => {
     if (!user) {
       router.push('/login')
@@ -151,6 +206,7 @@ export default function ProblemPage() {
     fetchActiveRound()
     fetchUserStatus()
     fetchNextProblem()
+    fetchSubmissionHistory()
   }, [params.id, user, router, fetchProblem, fetchActiveRound, fetchUserStatus, fetchNextProblem])
 
   const handleWarningAdded = () => {
@@ -172,6 +228,15 @@ export default function ProblemPage() {
     }
   }, [])
 
+  // Update current time every second
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date())
+    }, 1000)
+
+    return () => clearInterval(timer)
+  }, [])
+
   const handleSubmit = async () => {
     if (!problem || !code.trim()) return
 
@@ -189,21 +254,37 @@ export default function ProblemPage() {
         }),
       })
 
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP ${response.status}`)
+      }
+
       const data = await response.json()
       setResult(data)
+      setSubmissionResult({
+        ...data,
+        submittedAt: new Date().toISOString()
+      })
       
-      // Show animated popup if submission was accepted
+      // Show appropriate animated popup based on result
       if (data.status === 'ACCEPTED') {
         setShowSuccessPopup(true)
-        setTimeout(() => setShowSuccessPopup(false), 3000) // Hide after 3 seconds
+        setTimeout(() => setShowSuccessPopup(false), 4000) // Hide after 4 seconds
+      } else {
+        setShowFailurePopup(true)
+        setTimeout(() => setShowFailurePopup(false), 4000) // Hide after 4 seconds
       }
     } catch (error) {
       console.error('Submission failed:', error)
-      setResult({ error: 'Submission failed' })
+      setResult({ 
+        error: error instanceof Error ? error.message : 'Submission failed',
+        status: 'ERROR'
+      })
     } finally {
       setSubmitting(false)
-      // Refresh user status after submission
+      // Refresh user status and submission history after submission
       fetchUserStatus()
+      fetchSubmissionHistory()
     }
   }
 
@@ -270,6 +351,11 @@ export default function ProblemPage() {
             language: selectedLanguage,
           }),
         })
+
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `HTTP ${response.status}`)
+        }
 
         const data = await response.json()
         setResult(data)
@@ -372,9 +458,14 @@ export default function ProblemPage() {
                   ⚠️ {userStatus.warnings}/3 Warnings
                 </div>
               )}
-              <span className="text-sm text-gray-700">
-                {user?.username} | {problem.points} points
-              </span>
+              <div className="flex items-center space-x-4">
+                <div className="text-xs text-gray-500">
+                  🕐 {currentTime.toLocaleTimeString()}
+                </div>
+                <span className="text-sm text-gray-700">
+                  {user?.username} | {problem.points} points
+                </span>
+              </div>
             </div>
           </div>
         </div>
@@ -456,6 +547,16 @@ export default function ProblemPage() {
                     >
                       Test Results
                     </button>
+                    <button
+                      onClick={() => setActiveTab('history')}
+                      className={`py-4 px-1 border-b-2 font-medium text-sm ${
+                        activeTab === 'history'
+                          ? 'border-indigo-500 text-indigo-600'
+                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      Submission History
+                    </button>
                   </nav>
                 </div>
 
@@ -531,19 +632,13 @@ export default function ProblemPage() {
                             : (isClientSideSupported(selectedLanguage) ? '🚀 Run Test (Client-Side)' : 'Run Test (Server-Side)')
                           }
                         </button>
-                        {userStatus?.hasPassed ? (
-                          <div className="flex items-center space-x-2">
-                            <button
-                              disabled
-                              className="bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium opacity-75 cursor-not-allowed"
-                            >
-                              ✅ Problem Solved
-                            </button>
-                            <span className="text-sm text-green-600">
-                              You&apos;ve already passed this problem!
-                            </span>
-                          </div>
-                        ) : (
+                        <div className="flex items-center space-x-2">
+                          {userStatus?.hasPassed && (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-green-600 text-sm">✅ Problem Solved</span>
+                              <span className="text-sm text-gray-500">|</span>
+                            </div>
+                          )}
                           <button
                             onClick={handleSubmit}
                             disabled={submitting || !code.trim()}
@@ -551,7 +646,7 @@ export default function ProblemPage() {
                           >
                             {submitting ? 'Submitting...' : 'Submit Solution'}
                           </button>
-                        )}
+                        </div>
                       </div>
                       {userStatus && (
                         <div className="text-sm text-gray-500">
@@ -577,19 +672,30 @@ export default function ProblemPage() {
                             <div className={`border rounded-md p-4 ${
                               result.status === 'ACCEPTED' || result.status === 'TEST_COMPLETED'
                                 ? 'bg-green-50 border-green-200' 
-                                : 'bg-red-50 border-red-200'
+                                : result.status === 'WRONG_ANSWER'
+                                ? 'bg-red-50 border-red-200'
+                                : 'bg-yellow-50 border-yellow-200'
                             }`}>
                               <div className="flex items-center justify-between mb-2">
                                 <div className={`font-medium ${
                                   result.status === 'ACCEPTED' || result.status === 'TEST_COMPLETED'
                                     ? 'text-green-800' 
-                                    : 'text-red-800'
+                                    : result.status === 'WRONG_ANSWER'
+                                    ? 'text-red-800'
+                                    : 'text-yellow-800'
                                 }`}>Submission Result</div>
-                                {isClientSideExecution && (
-                                  <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                                    🚀 Client-Side Execution
-                                  </span>
-                                )}
+                                <div className="flex items-center space-x-2">
+                                  {submissionResult?.submittedAt && (
+                                    <span className="text-xs text-gray-500">
+                                      📅 {new Date(submissionResult.submittedAt).toLocaleString()}
+                                    </span>
+                                  )}
+                                  {isClientSideExecution && (
+                                    <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                      🚀 Client-Side Execution
+                                    </span>
+                                  )}
+                                </div>
                               </div>
                               <div className={`text-sm mt-1 ${
                                 result.status === 'ACCEPTED' || result.status === 'TEST_COMPLETED'
@@ -702,6 +808,72 @@ export default function ProblemPage() {
                     )}
                   </div>
                 )}
+
+                {/* Submission History */}
+                {activeTab === 'history' && (
+                  <div className="p-6">
+                    <div className="mb-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Your Submission History</h3>
+                      <p className="text-sm text-gray-600">
+                        View all your previous submissions for this problem with timestamps.
+                      </p>
+                    </div>
+                    
+                    {submissionHistory.length === 0 ? (
+                      <div className="text-center py-12">
+                        <div className="text-gray-400 text-4xl mb-4">📝</div>
+                        <h3 className="text-lg font-medium text-gray-900 mb-2">
+                          No submissions yet
+                        </h3>
+                        <p className="text-gray-500">
+                          Submit your first solution to see it here.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {submissionHistory.map((submission, index) => (
+                          <div
+                            key={submission.id}
+                            className={`border rounded-lg p-4 ${
+                              submission.status === 'ACCEPTED'
+                                ? 'bg-green-50 border-green-200'
+                                : 'bg-red-50 border-red-200'
+                            }`}
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <div className="flex items-center space-x-3">
+                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                                  submission.status === 'ACCEPTED'
+                                    ? 'bg-green-100 text-green-800'
+                                    : 'bg-red-100 text-red-800'
+                                }`}>
+                                  {submission.status}
+                                </span>
+                                <span className="text-sm text-gray-600">
+                                  {submission.language}
+                                </span>
+                                <span className="text-sm font-medium text-gray-900">
+                                  {submission.score} points
+                                </span>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-medium text-gray-900">
+                                  {new Date(submission.submittedAt).toLocaleString()}
+                                </div>
+                                <div className="text-xs text-gray-500">
+                                  {getRelativeTime(submission.submittedAt)}
+                                </div>
+                              </div>
+                            </div>
+                            <div className="text-xs text-gray-500">
+                              Submission #{submissionHistory.length - index}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -710,18 +882,23 @@ export default function ProblemPage() {
 
       {/* Success Popup */}
       {showSuccessPopup && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg p-8 max-w-md mx-4 text-center animate-bounce">
-            <div className="text-6xl mb-4">🎉</div>
-            <h3 className="text-2xl font-bold text-green-600 mb-2">All Tests Passed!</h3>
-            <p className="text-gray-600 mb-4">Great job! Your solution is working correctly.</p>
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
+          <div className="bg-white rounded-lg p-8 max-w-md mx-4 text-center animate-scaleIn">
+            <div className="text-6xl mb-4 animate-bounce">🎉</div>
+            <h3 className="text-2xl font-bold text-green-600 mb-2 animate-pulse">All Tests Passed!</h3>
+            <p className="text-gray-600 mb-2">Great job! Your solution is working correctly.</p>
+            {submissionResult?.submittedAt && (
+              <p className="text-sm text-gray-500 mb-4">
+                📅 Submitted at: {new Date(submissionResult.submittedAt).toLocaleString()}
+              </p>
+            )}
             <div className="text-4xl font-bold text-indigo-600 animate-pulse mb-6">
-              +{problem?.points || 100} Points
+              +{submissionResult?.score || problem?.points || 100} Points
             </div>
             {nextProblem && (
               <button
                 onClick={() => router.push(`/problem/${nextProblem.id}`)}
-                className="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors"
+                className="bg-green-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-green-700 transition-colors animate-pulse"
               >
                 🚀 Solve Next Problem
               </button>
@@ -731,6 +908,43 @@ export default function ProblemPage() {
                 🏆 Congratulations! You&apos;ve solved all available problems!
               </p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Failure Popup */}
+      {showFailurePopup && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 animate-fadeIn">
+          <div className="bg-white rounded-lg p-8 max-w-md mx-4 text-center animate-scaleIn">
+            <div className="text-6xl mb-4 animate-shake">❌</div>
+            <h3 className="text-2xl font-bold text-red-600 mb-2">Submission Failed</h3>
+            <p className="text-gray-600 mb-2">
+              {submissionResult?.status === 'WRONG_ANSWER' 
+                ? 'Your solution didn\'t pass all test cases.' 
+                : 'There was an error with your submission.'}
+            </p>
+            {submissionResult?.submittedAt && (
+              <p className="text-sm text-gray-500 mb-4">
+                📅 Submitted at: {new Date(submissionResult.submittedAt).toLocaleString()}
+              </p>
+            )}
+            {submissionResult?.testResults && (
+              <div className="text-sm text-gray-500 mb-4">
+                <div className="font-semibold">Test Results:</div>
+                <div>
+                  {submissionResult.testResults.filter(t => t.passed).length} of {submissionResult.testResults.length} test cases passed
+                </div>
+              </div>
+            )}
+            <div className="text-2xl font-bold text-red-600 mb-6">
+              0 Points
+            </div>
+            <button
+              onClick={() => setShowFailurePopup(false)}
+              className="bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors"
+            >
+              Try Again
+            </button>
           </div>
         </div>
       )}

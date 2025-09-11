@@ -47,6 +47,22 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    // Check if user is disqualified
+    if (user.isDisqualified) {
+      return NextResponse.json(
+        { error: 'You have been disqualified and cannot submit solutions' },
+        { status: 403 }
+      )
+    }
+
+    // Validate code length
+    if (code.length > 10000) {
+      return NextResponse.json(
+        { error: 'Code is too long. Maximum 10,000 characters allowed.' },
+        { status: 400 }
+      )
+    }
+
     // Create submission record
     const submission = await prisma.submission.create({
       data: {
@@ -78,11 +94,23 @@ export async function POST(request: NextRequest) {
         totalExecutionTime = Math.max(totalExecutionTime, result.executionTime)
         maxMemoryUsage = Math.max(maxMemoryUsage, result.memoryUsage)
 
+        // Strict output comparison - must match exactly after normalization
+        const normalizedOutput = result.output.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        const normalizedExpected = testCase.expectedOutput.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        
+        // Only accept if execution was successful AND output matches exactly
         const passed = result.status === 'SUCCESS' && 
-                      result.output.trim() === testCase.expectedOutput.trim()
+                      normalizedOutput === normalizedExpected &&
+                      !result.error // Ensure no errors occurred
 
         if (!passed) {
           allPassed = false
+          console.log(`Test case ${testResults.length + 1} failed:`, {
+            expected: normalizedExpected,
+            actual: normalizedOutput,
+            status: result.status,
+            error: result.error
+          })
         }
 
         testResults.push({
@@ -104,8 +132,27 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Only accept if ALL test cases passed with no errors
     const finalStatus = allPassed ? 'ACCEPTED' : 'WRONG_ANSWER'
     const score = allPassed ? problem.points : 0
+
+    // Log the final result for debugging
+    console.log(`Submission ${submission.id} result:`, {
+      allPassed,
+      finalStatus,
+      score,
+      testResultsCount: testResults.length,
+      passedCount: testResults.filter(t => t.passed).length
+    })
+
+    // Check if this is the first correct submission for this problem
+    const isFirstCorrect = allPassed ? await prisma.submission.findFirst({
+      where: {
+        problemId,
+        status: 'ACCEPTED',
+        id: { not: submission.id }
+      }
+    }) === null : false
 
     const executionResult = {
       status: finalStatus,
@@ -127,6 +174,7 @@ export async function POST(request: NextRequest) {
         timeComplexity: executionResult.timeComplexity || null,
         spaceComplexity: executionResult.spaceComplexity || null,
         score: executionResult.score || 0,
+        isFirstCorrect,
       },
     })
 

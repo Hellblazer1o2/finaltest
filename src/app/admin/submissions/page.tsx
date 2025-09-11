@@ -15,6 +15,7 @@ interface Submission {
   timeComplexity: string | null
   spaceComplexity: string | null
   score: number | null
+  isFirstCorrect: boolean
   submittedAt: string
   user: {
     id: string
@@ -39,6 +40,28 @@ export default function AdminSubmissionsPage() {
     status: '',
   })
   const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null)
+
+  // Helper function to get relative time
+  const getRelativeTime = (dateString: string): string => {
+    const now = new Date()
+    const submissionDate = new Date(dateString)
+    const diffInSeconds = Math.floor((now.getTime() - submissionDate.getTime()) / 1000)
+
+    if (diffInSeconds < 60) {
+      return `${diffInSeconds} seconds ago`
+    } else if (diffInSeconds < 3600) {
+      const minutes = Math.floor(diffInSeconds / 60)
+      return `${minutes} minute${minutes > 1 ? 's' : ''} ago`
+    } else if (diffInSeconds < 86400) {
+      const hours = Math.floor(diffInSeconds / 3600)
+      return `${hours} hour${hours > 1 ? 's' : ''} ago`
+    } else if (diffInSeconds < 604800) {
+      const days = Math.floor(diffInSeconds / 86400)
+      return `${days} day${days > 1 ? 's' : ''} ago`
+    } else {
+      return submissionDate.toLocaleDateString()
+    }
+  }
 
   const fetchSubmissions = useCallback(async () => {
     try {
@@ -217,6 +240,9 @@ export default function AdminSubmissionsPage() {
                         Score
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                        First Correct
+                      </th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                         Submitted
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -268,8 +294,24 @@ export default function AdminSubmissionsPage() {
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           {submission.score || 0}
                         </td>
+                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                          {submission.isFirstCorrect ? (
+                            <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              🥇 First
+                            </span>
+                          ) : (
+                            <span className="text-gray-400">-</span>
+                          )}
+                        </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                          {new Date(submission.submittedAt).toLocaleString()}
+                          <div className="flex flex-col">
+                            <div className="font-medium">
+                              {new Date(submission.submittedAt).toLocaleString()}
+                            </div>
+                            <div className="text-xs text-gray-400">
+                              {getRelativeTime(submission.submittedAt)}
+                            </div>
+                          </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm font-medium">
                           <button
@@ -305,11 +347,28 @@ export default function AdminSubmissionsPage() {
               </button>
             </div>
             <div className="mb-4 text-sm text-gray-600">
-              <div>Problem: {selectedSubmission.problem.title}</div>
-              <div>Language: {selectedSubmission.language}</div>
-              <div>Status: <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedSubmission.status)}`}>{selectedSubmission.status}</span></div>
-              <div>Time Complexity: {selectedSubmission.timeComplexity || 'N/A'}</div>
-              <div>Space Complexity: {selectedSubmission.spaceComplexity || 'N/A'}</div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <div className="font-semibold text-gray-800 mb-2">Submission Details</div>
+                  <div>Problem: {selectedSubmission.problem.title}</div>
+                  <div>Language: {selectedSubmission.language}</div>
+                  <div>Status: <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(selectedSubmission.status)}`}>{selectedSubmission.status}</span></div>
+                  <div>Score: {selectedSubmission.score || 0} points</div>
+                  <div>First Correct: {selectedSubmission.isFirstCorrect ? '🥇 Yes' : 'No'}</div>
+                </div>
+                <div>
+                  <div className="font-semibold text-gray-800 mb-2">Performance & Time</div>
+                  <div>Time Complexity: {selectedSubmission.timeComplexity || 'N/A'}</div>
+                  <div>Space Complexity: {selectedSubmission.spaceComplexity || 'N/A'}</div>
+                  <div>Execution Time: {selectedSubmission.executionTime || 0}ms</div>
+                  <div>Memory Usage: {selectedSubmission.memoryUsage || 0}KB</div>
+                  <div className="mt-2 p-2 bg-blue-50 rounded border">
+                    <div className="font-medium text-blue-800">📅 Submission Time</div>
+                    <div className="text-blue-700">{new Date(selectedSubmission.submittedAt).toLocaleString()}</div>
+                    <div className="text-xs text-blue-600">{getRelativeTime(selectedSubmission.submittedAt)}</div>
+                  </div>
+                </div>
+              </div>
             </div>
             <div className="border rounded-md p-4 bg-gray-50 max-h-96 overflow-auto">
               <pre className="text-sm font-mono whitespace-pre-wrap">

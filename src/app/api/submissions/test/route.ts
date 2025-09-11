@@ -70,8 +70,14 @@ export async function POST(request: NextRequest) {
         totalExecutionTime = Math.max(totalExecutionTime, result.executionTime)
         maxMemoryUsage = Math.max(maxMemoryUsage, result.memoryUsage)
 
+        // Strict output comparison - must match exactly after normalization
+        const normalizedOutput = result.output.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        const normalizedExpected = testCase.expectedOutput.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        
+        // Only accept if execution was successful AND output matches exactly
         const passed = result.status === 'SUCCESS' && 
-                      result.output.trim() === testCase.expectedOutput.trim()
+                      normalizedOutput === normalizedExpected &&
+                      !result.error // Ensure no errors occurred
 
         testResults.push({
           testCase: testResults.length + 1,
@@ -81,6 +87,7 @@ export async function POST(request: NextRequest) {
           error: result.error,
         })
       } catch (error) {
+        console.error(`Test case ${testResults.length + 1} execution failed:`, error)
         testResults.push({
           testCase: testResults.length + 1,
           passed: false,
