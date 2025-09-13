@@ -245,7 +245,7 @@ export class ClientCodeExecutorSafe {
    */
   private validatePythonCode(code: string): string | null {
     const lines = code.split('\n');
-    let indentLevel = 0;
+        const indentLevel = 0;
     let inClass = false;
     let inFunction = false;
     

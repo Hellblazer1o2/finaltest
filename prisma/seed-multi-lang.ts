@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient, SubmissionStatus, UserRole, ProblemType } from '@prisma/client'
 import bcrypt from 'bcryptjs'
 
 const prisma = new PrismaClient()
@@ -22,31 +22,31 @@ async function main() {
       email: 'admin@idearpit.com',
       username: 'hellblazer',
       password: 'Egon_the_dragon_slayer',
-      role: 'ADMIN' as const
+      role: UserRole.ADMIN
     },
     {
       email: 'alice@example.com',
       username: 'alice_coder',
       password: 'password123',
-      role: 'USER' as const
+      role: UserRole.USER
     },
     {
       email: 'bob@example.com',
       username: 'bob_dev',
       password: 'password123',
-      role: 'USER' as const
+      role: UserRole.USER
     },
     {
       email: 'charlie@example.com',
       username: 'charlie_pro',
       password: 'password123',
-      role: 'USER' as const
+      role: UserRole.USER
     },
     {
       email: 'diana@example.com',
       username: 'diana_hacker',
       password: 'password123',
-      role: 'USER' as const
+      role: UserRole.USER
     }
   ]
 
@@ -123,7 +123,7 @@ public class Main {
     // Your code here
     return 0;
 }`,
-      type: 'GENERAL' as const,
+      type: ProblemType.GENERAL,
       complexity: 'Easy',
       timeLimit: 2000,
       memoryLimit: 128,
@@ -200,7 +200,7 @@ public class Main {
     // Your code here
     return [0, 1];
 }`,
-      type: 'GENERAL' as const,
+      type: ProblemType.GENERAL,
       complexity: 'Easy',
       timeLimit: 2000,
       memoryLimit: 128,
@@ -264,7 +264,7 @@ public class Main {
     // Your code here
     return false;
 }`,
-      type: 'GENERAL' as const,
+      type: ProblemType.GENERAL,
       complexity: 'Easy',
       timeLimit: 2000,
       memoryLimit: 128,
@@ -337,7 +337,7 @@ public class Main {
     // Your code here
     return -1;
 }`,
-      type: 'GENERAL' as const,
+      type: ProblemType.GENERAL,
       complexity: 'Easy',
       timeLimit: 2000,
       memoryLimit: 128,
@@ -399,7 +399,7 @@ public class Main {
     // Your code here
     return 0;
 }`,
-      type: 'GENERAL' as const,
+      type: ProblemType.GENERAL,
       complexity: 'Medium',
       timeLimit: 2500,
       memoryLimit: 192,
@@ -597,7 +597,7 @@ public class Main {
       problemId: createdProblems[0].id, // Fibonacci
       code: 'function fibonacci(n) {\n    if (n <= 1) return n;\n    return fibonacci(n-1) + fibonacci(n-2);\n}',
       language: 'javascript',
-      status: 'ACCEPTED',
+      status: SubmissionStatus.ACCEPTED,
       score: 100,
       executionTime: 150,
       memoryUsage: 64,
@@ -608,7 +608,7 @@ public class Main {
       problemId: createdProblems[1].id, // Two Sum
       code: 'function twoSum(nums, target) {\n    for (let i = 0; i < nums.length; i++) {\n        for (let j = i + 1; j < nums.length; j++) {\n            if (nums[i] + nums[j] === target) {\n                return [i, j];\n            }\n        }\n    }\n    return [0, 1];\n}',
       language: 'javascript',
-      status: 'ACCEPTED',
+      status: SubmissionStatus.ACCEPTED,
       score: 150,
       executionTime: 200,
       memoryUsage: 80,
@@ -619,7 +619,7 @@ public class Main {
       problemId: createdProblems[2].id, // Valid Parentheses
       code: 'function isValid(s) {\n    const stack = [];\n    const map = {\'(\': \')\', \'[\': \']\', \'{\': \'}\'};\n    \n    for (let char of s) {\n        if (char in map) {\n            stack.push(char);\n        } else {\n            if (stack.length === 0 || map[stack.pop()] !== char) {\n                return false;\n            }\n        }\n    }\n    \n    return stack.length === 0;\n}',
       language: 'javascript',
-      status: 'ACCEPTED',
+      status: SubmissionStatus.ACCEPTED,
       score: 100,
       executionTime: 120,
       memoryUsage: 60,
@@ -632,7 +632,7 @@ public class Main {
       problemId: createdProblems[0].id, // Fibonacci
       code: 'def fibonacci(n):\n    if n <= 1:\n        return n\n    a, b = 0, 1\n    for i in range(2, n + 1):\n        a, b = b, a + b\n    return b',
       language: 'python',
-      status: 'ACCEPTED',
+      status: SubmissionStatus.ACCEPTED,
       score: 100,
       executionTime: 100,
       memoryUsage: 50,
@@ -643,7 +643,7 @@ public class Main {
       problemId: createdProblems[1].id, // Two Sum
       code: 'def two_sum(nums, target):\n    num_map = {}\n    for i, num in enumerate(nums):\n        complement = target - num\n        if complement in num_map:\n            return [num_map[complement], i]\n        num_map[num] = i\n    return [0, 1]',
       language: 'python',
-      status: 'ACCEPTED',
+      status: SubmissionStatus.ACCEPTED,
       score: 150,
       executionTime: 80,
       memoryUsage: 70,
@@ -656,7 +656,7 @@ public class Main {
       problemId: createdProblems[0].id, // Fibonacci
       code: '#include <iostream>\nusing namespace std;\n\nint fibonacci(int n) {\n    if (n <= 1) return n;\n    int a = 0, b = 1;\n    for (int i = 2; i <= n; i++) {\n        int temp = a + b;\n        a = b;\n        b = temp;\n    }\n    return b;\n}\n\nint main() {\n    int n;\n    cin >> n;\n    cout << fibonacci(n) << endl;\n    return 0;\n}',
       language: 'cpp',
-      status: 'ACCEPTED',
+      status: SubmissionStatus.ACCEPTED,
       score: 100,
       executionTime: 90,
       memoryUsage: 45,
@@ -667,7 +667,7 @@ public class Main {
       problemId: createdProblems[4].id, // LCS
       code: 'public class Main {\n    public static int longestCommonSubsequence(String text1, String text2) {\n        int m = text1.length(), n = text2.length();\n        int[][] dp = new int[m + 1][n + 1];\n        \n        for (int i = 1; i <= m; i++) {\n            for (int j = 1; j <= n; j++) {\n                if (text1.charAt(i-1) == text2.charAt(j-1)) {\n                    dp[i][j] = dp[i-1][j-1] + 1;\n                } else {\n                    dp[i][j] = Math.max(dp[i-1][j], dp[i][j-1]);\n                }\n            }\n        }\n        \n        return dp[m][n];\n    }\n    \n    public static void main(String[] args) {\n        java.util.Scanner scanner = new java.util.Scanner(System.in);\n        String text1 = scanner.nextLine();\n        String text2 = scanner.nextLine();\n        System.out.println(longestCommonSubsequence(text1, text2));\n    }\n}',
       language: 'java',
-      status: 'ACCEPTED',
+      status: SubmissionStatus.ACCEPTED,
       score: 200,
       executionTime: 300,
       memoryUsage: 150,
@@ -680,7 +680,7 @@ public class Main {
       problemId: createdProblems[0].id, // Fibonacci
       code: 'function fibonacci(n) {\n    if (n <= 1) return n;\n    return fibonacci(n-1) + fibonacci(n-2);\n}',
       language: 'javascript',
-      status: 'WRONG_ANSWER',
+      status: SubmissionStatus.WRONG_ANSWER,
       score: 0,
       executionTime: 200,
       memoryUsage: 80,
@@ -691,7 +691,7 @@ public class Main {
       problemId: createdProblems[1].id, // Two Sum
       code: 'function twoSum(nums, target) {\n    return [0, 1]; // Wrong implementation\n}',
       language: 'javascript',
-      status: 'WRONG_ANSWER',
+      status: SubmissionStatus.WRONG_ANSWER,
       score: 0,
       executionTime: 50,
       memoryUsage: 40,

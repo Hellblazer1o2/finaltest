@@ -178,9 +178,9 @@ export async function POST(request: NextRequest) {
       }
     }) === null : false
 
-    // Only analyze complexity for correct answers
-    let timeComplexity = null
-    let spaceComplexity = null
+            // Only analyze complexity for correct answers
+            const timeComplexity = null
+            const spaceComplexity = null
     
     if (allPassed) {
       // TODO: Add complexity analysis here for correct answers

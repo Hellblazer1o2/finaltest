@@ -238,7 +238,7 @@ export class OnlineCodeExecutorNew {
       const { timeComplexity, spaceComplexity } = this.analyzeComplexity(code, language)
       
       // Look for output statements based on language
-      let outputs: string[] = []
+      const outputs: string[] = []
       
       if (language.toLowerCase() === 'python' || language.toLowerCase() === 'py') {
         const printLines = lines.filter(line => 
