@@ -241,6 +241,234 @@ export class ClientCodeExecutorSafe {
   }
 
   /**
+   * Validate Python code for common issues
+   */
+  private validatePythonCode(code: string): string | null {
+    const lines = code.split('\n');
+    let indentLevel = 0;
+    let inClass = false;
+    let inFunction = false;
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const trimmedLine = line.trim();
+      
+      // Skip empty lines and comments
+      if (!trimmedLine || trimmedLine.startsWith('#')) {
+        continue;
+      }
+      
+      // Check for class definition
+      if (trimmedLine.startsWith('class ')) {
+        inClass = true;
+        // Check if next line is properly indented
+        if (i + 1 < lines.length) {
+          const nextLine = lines[i + 1];
+          if (nextLine.trim() && !nextLine.startsWith('    ') && !nextLine.startsWith('\t')) {
+            return `Line ${i + 2}: Expected an indented block after class definition. Class body should be indented.`;
+          }
+        }
+        continue;
+      }
+      
+      // Check for function definition
+      if (trimmedLine.startsWith('def ') || trimmedLine.startsWith('async def ')) {
+        inFunction = true;
+        // Check if next line is properly indented
+        if (i + 1 < lines.length) {
+          const nextLine = lines[i + 1];
+          if (nextLine.trim() && !nextLine.startsWith('    ') && !nextLine.startsWith('\t')) {
+            return `Line ${i + 2}: Expected an indented block after function definition. Function body should be indented.`;
+          }
+        }
+        continue;
+      }
+      
+      // Check for if/for/while/with/try statements
+      if (trimmedLine.match(/^(if|for|while|with|try|elif|else|except|finally)\s/)) {
+        // Check if next line is properly indented
+        if (i + 1 < lines.length) {
+          const nextLine = lines[i + 1];
+          if (nextLine.trim() && !nextLine.startsWith('    ') && !nextLine.startsWith('\t')) {
+            return `Line ${i + 2}: Expected an indented block after ${trimmedLine.split(' ')[0]} statement. Block should be indented.`;
+          }
+        }
+        continue;
+      }
+      
+      // Check for inconsistent indentation
+      const currentIndent = line.length - line.trimStart().length;
+      if (currentIndent > 0 && currentIndent % 4 !== 0) {
+        return `Line ${i + 1}: Inconsistent indentation. Use 4 spaces for each indentation level.`;
+      }
+    }
+    
+    return null;
+  }
+
+  /**
+   * Validate C++ code for common issues
+   */
+  private validateCppCode(code: string): string | null {
+    const lines = code.split('\n');
+    
+    // Check for missing main function
+    const hasMain = code.includes('int main') || code.includes('void main') || code.includes('main()');
+    if (!hasMain) {
+      return 'C++ code must include a main function. Add: int main() { ... }';
+    }
+    
+    // Check for missing semicolons
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line && !line.startsWith('//') && !line.startsWith('/*') && !line.startsWith('*') && !line.endsWith(';') && 
+          !line.endsWith('{') && !line.endsWith('}') && !line.startsWith('#') && !line.includes('if') && 
+          !line.includes('for') && !line.includes('while') && !line.includes('else')) {
+        return `Line ${i + 1}: Missing semicolon. Most C++ statements should end with a semicolon.`;
+      }
+    }
+    
+    // Check for unmatched braces
+    let braceCount = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      for (const char of line) {
+        if (char === '{') braceCount++;
+        if (char === '}') braceCount--;
+      }
+    }
+    if (braceCount !== 0) {
+      return 'Unmatched braces { }. Make sure all opening braces have corresponding closing braces.';
+    }
+    
+    return null;
+  }
+
+  /**
+   * Validate JavaScript code for common issues
+   */
+  private validateJavaScriptCode(code: string): string | null {
+    const lines = code.split('\n');
+    
+    // Check for missing semicolons in certain contexts
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line && !line.startsWith('//') && !line.startsWith('/*') && 
+          (line.includes('console.log') || line.includes('return') || line.includes('let ') || 
+           line.includes('const ') || line.includes('var ')) && !line.endsWith(';') && 
+          !line.endsWith('{') && !line.endsWith('}')) {
+        return `Line ${i + 1}: Consider adding a semicolon at the end of the statement.`;
+      }
+    }
+    
+    // Check for unmatched braces
+    let braceCount = 0;
+    let parenCount = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      for (const char of line) {
+        if (char === '{') braceCount++;
+        if (char === '}') braceCount--;
+        if (char === '(') parenCount++;
+        if (char === ')') parenCount--;
+      }
+    }
+    if (braceCount !== 0) {
+      return 'Unmatched braces { }. Make sure all opening braces have corresponding closing braces.';
+    }
+    if (parenCount !== 0) {
+      return 'Unmatched parentheses ( ). Make sure all opening parentheses have corresponding closing parentheses.';
+    }
+    
+    return null;
+  }
+
+  /**
+   * Validate Java code for common issues
+   */
+  private validateJavaCode(code: string): string | null {
+    const lines = code.split('\n');
+    
+    // Check for missing main method
+    const hasMain = code.includes('public static void main') || code.includes('public static void main(String[]');
+    if (!hasMain) {
+      return 'Java code must include a main method. Add: public static void main(String[] args) { ... }';
+    }
+    
+    // Check for missing class declaration
+    const hasClass = code.includes('public class ') || code.includes('class ');
+    if (!hasClass) {
+      return 'Java code must include a class declaration. Add: public class Main { ... }';
+    }
+    
+    // Check for missing semicolons
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (line && !line.startsWith('//') && !line.startsWith('/*') && !line.startsWith('*') && 
+          !line.endsWith(';') && !line.endsWith('{') && !line.endsWith('}') && 
+          !line.startsWith('public') && !line.startsWith('private') && !line.startsWith('protected') &&
+          !line.includes('if') && !line.includes('for') && !line.includes('while') && !line.includes('else')) {
+        return `Line ${i + 1}: Missing semicolon. Most Java statements should end with a semicolon.`;
+      }
+    }
+    
+    // Check for unmatched braces
+    let braceCount = 0;
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      for (const char of line) {
+        if (char === '{') braceCount++;
+        if (char === '}') braceCount--;
+      }
+    }
+    if (braceCount !== 0) {
+      return 'Unmatched braces { }. Make sure all opening braces have corresponding closing braces.';
+    }
+    
+    return null;
+  }
+
+  /**
+   * Format JavaScript error messages
+   */
+  private formatJavaScriptError(error: any): string {
+    const errorStr = String(error);
+    
+    if (errorStr.includes('SyntaxError') || errorStr.includes('syntax error')) {
+      return `JavaScript Syntax Error: ${errorStr}`;
+    } else if (errorStr.includes('ReferenceError') || errorStr.includes('reference error')) {
+      return `JavaScript Reference Error: ${errorStr}`;
+    } else if (errorStr.includes('TypeError') || errorStr.includes('type error')) {
+      return `JavaScript Type Error: ${errorStr}`;
+    } else if (errorStr.includes('RangeError') || errorStr.includes('range error')) {
+      return `JavaScript Range Error: ${errorStr}`;
+    } else if (errorStr.includes('EvalError') || errorStr.includes('eval error')) {
+      return `JavaScript Eval Error: ${errorStr}`;
+    } else {
+      return `JavaScript Error: ${errorStr}`;
+    }
+  }
+
+  /**
+   * Format Java error messages
+   */
+  private formatJavaError(error: string): string {
+    if (error.includes('compilation error') || error.includes('Compilation error')) {
+      return `Java Compilation Error: ${error}`;
+    } else if (error.includes('runtime error') || error.includes('Runtime error')) {
+      return `Java Runtime Error: ${error}`;
+    } else if (error.includes('syntax error') || error.includes('Syntax error')) {
+      return `Java Syntax Error: ${error}`;
+    } else if (error.includes('class not found') || error.includes('Class not found')) {
+      return `Java Class Not Found Error: ${error}`;
+    } else if (error.includes('method not found') || error.includes('Method not found')) {
+      return `Java Method Not Found Error: ${error}`;
+    } else {
+      return `Java Error: ${error}`;
+    }
+  }
+
+  /**
    * Create a fallback C++ executor
    */
   private createFallbackCppExecutor(): any {
@@ -584,6 +812,17 @@ export class ClientCodeExecutorSafe {
         };
       }
       
+      // Validate Python code for common issues
+      const validationError = this.validatePythonCode(sanitizedCode);
+      if (validationError) {
+        return {
+          status: 'ERROR',
+          output: '',
+          error: validationError,
+          executionTime: Date.now() - startTime
+        };
+      }
+      
       // Execute Python code (either with Pyodide or fallback)
       let output = '';
       
@@ -592,10 +831,35 @@ export class ClientCodeExecutorSafe {
       if (this.usingFallback.python) {
         // Using fallback executor
         console.log('Using Python fallback executor');
-        await this.pyodide.runPythonAsync(sanitizedCode);
-        output = this.pyodide.globals.get('output_text') || '';
+        try {
+          const fallbackExecutor = this.createFallbackPythonExecutor();
+          await fallbackExecutor.runPythonAsync(sanitizedCode);
+          output = (window as any).__python_output || '';
+        } catch (fallbackError) {
+          // Handle specific Python errors in fallback mode
+          if (fallbackError instanceof Error) {
+            if (fallbackError.message.includes('IndentationError')) {
+              throw new Error(`Python Indentation Error: ${fallbackError.message}`);
+            } else if (fallbackError.message.includes('SyntaxError')) {
+              throw new Error(`Python Syntax Error: ${fallbackError.message}`);
+            } else if (fallbackError.message.includes('NameError')) {
+              throw new Error(`Python Name Error: ${fallbackError.message}`);
+            } else if (fallbackError.message.includes('TypeError')) {
+              throw new Error(`Python Type Error: ${fallbackError.message}`);
+            } else if (fallbackError.message.includes('ValueError')) {
+              throw new Error(`Python Value Error: ${fallbackError.message}`);
+            } else {
+              throw new Error(`Python Error: ${fallbackError.message}`);
+            }
+          }
+          throw fallbackError;
+        }
       } else {
         // Using Pyodide
+        if (!this.pyodide) {
+          throw new Error('Pyodide not initialized. Please try again.');
+        }
+        
         // Set up stdout capture
         this.pyodide.runPython(`
 import sys
@@ -612,17 +876,38 @@ sys.stdout = captured_output
           await this.pyodide.runPythonAsync(sanitizedCode);
         } catch (execError) {
           // Restore stdout before handling error
-          this.pyodide.runPython('sys.stdout = old_stdout');
+          if (this.pyodide) {
+            this.pyodide.runPython('sys.stdout = old_stdout');
+          }
+          
+          // Handle specific Python errors
+          if (execError instanceof Error) {
+            if (execError.message.includes('IndentationError')) {
+              throw new Error(`Python Indentation Error: ${execError.message}`);
+            } else if (execError.message.includes('SyntaxError')) {
+              throw new Error(`Python Syntax Error: ${execError.message}`);
+            } else if (execError.message.includes('NameError')) {
+              throw new Error(`Python Name Error: ${execError.message}`);
+            } else if (execError.message.includes('TypeError')) {
+              throw new Error(`Python Type Error: ${execError.message}`);
+            } else if (execError.message.includes('ValueError')) {
+              throw new Error(`Python Value Error: ${execError.message}`);
+            } else {
+              throw new Error(`Python Error: ${execError.message}`);
+            }
+          }
           throw execError;
         }
 
         // Get captured output and restore stdout
-        this.pyodide.runPython(`
+        if (this.pyodide) {
+          this.pyodide.runPython(`
 sys.stdout = old_stdout
 output_text = captured_output.getvalue()
-        `);
+          `);
 
-        output = this.pyodide.globals.get('output_text') || '';
+          output = this.pyodide.globals.get('output_text') || '';
+        }
       }
 
       const executionTime = Date.now() - startTime;
@@ -677,21 +962,56 @@ output_text = captured_output.getvalue()
         };
       }
       
+      // Validate C++ code for common issues
+      const validationError = this.validateCppCode(sanitizedCode);
+      if (validationError) {
+        return {
+          status: 'ERROR',
+          output: '',
+          error: validationError,
+          executionTime: Date.now() - startTime
+        };
+      }
+      
       // Execute C++ code (either with JSCPP or fallback)
       let result;
-      if (this.usingFallback.cpp) {
-        // Using fallback executor
-        result = this.jscpp.run(sanitizedCode);
-      } else {
-        // Using JSCPP - check if it's actually a constructor
-        if (typeof this.jscpp === 'function') {
-          const cppInstance = new this.jscpp();
-          result = cppInstance.run(sanitizedCode);
+      try {
+        if (this.usingFallback.cpp) {
+          // Using fallback executor
+          if (!this.jscpp) {
+            throw new Error('C++ executor not initialized. Please try again.');
+          }
+          result = this.jscpp.run(sanitizedCode);
         } else {
-          // JSCPP loaded but not as expected, fall back to fallback executor
-          console.warn('JSCPP loaded but not as constructor, using fallback');
-          result = this.createFallbackCppExecutor().run(sanitizedCode);
+          // Using JSCPP - check if it's actually a constructor
+          if (!this.jscpp) {
+            throw new Error('JSCPP not initialized. Please try again.');
+          }
+          if (typeof this.jscpp === 'function') {
+            const cppInstance = new this.jscpp();
+            result = cppInstance.run(sanitizedCode);
+          } else {
+            // JSCPP loaded but not as expected, fall back to fallback executor
+            console.warn('JSCPP loaded but not as constructor, using fallback');
+            result = this.createFallbackCppExecutor().run(sanitizedCode);
+          }
         }
+      } catch (cppError) {
+        // Handle specific C++ errors
+        if (cppError instanceof Error) {
+          if (cppError.message.includes('SyntaxError') || cppError.message.includes('syntax error')) {
+            throw new Error(`C++ Syntax Error: ${cppError.message}`);
+          } else if (cppError.message.includes('undefined reference')) {
+            throw new Error(`C++ Link Error: ${cppError.message}`);
+          } else if (cppError.message.includes('error:') || cppError.message.includes('Error:')) {
+            throw new Error(`C++ Compilation Error: ${cppError.message}`);
+          } else if (cppError.message.includes('runtime error') || cppError.message.includes('Runtime Error')) {
+            throw new Error(`C++ Runtime Error: ${cppError.message}`);
+          } else {
+            throw new Error(`C++ Error: ${cppError.message}`);
+          }
+        }
+        throw cppError;
       }
       
       const executionTime = Date.now() - startTime;
@@ -732,6 +1052,17 @@ output_text = captured_output.getvalue()
         };
       }
       
+      // Validate Java code for common issues
+      const validationError = this.validateJavaCode(sanitizedCode);
+      if (validationError) {
+        return {
+          status: 'ERROR',
+          output: '',
+          error: validationError,
+          executionTime: Date.now() - startTime
+        };
+      }
+      
       // Use fallback Java executor
       const result = this.createFallbackJavaExecutor().run(sanitizedCode);
       
@@ -740,7 +1071,7 @@ output_text = captured_output.getvalue()
       return {
         status: result.error ? 'ERROR' : 'SUCCESS',
         output: result.output || '(no output)',
-        error: result.error || '',
+        error: result.error ? this.formatJavaError(result.error) : '',
         executionTime
       };
     } catch (error) {
@@ -861,20 +1192,35 @@ output_text = captured_output.getvalue()
         };
       }
       
+      // Validate JavaScript code for common issues
+      const validationError = this.validateJavaScriptCode(sanitizedCode);
+      if (validationError) {
+        return {
+          status: 'ERROR',
+          output: '',
+          error: validationError,
+          executionTime: Date.now() - startTime
+        };
+      }
+      
       // Execute JavaScript code (either with QuickJS or fallback)
       let output = '';
       
       if (this.usingFallback.nodejs) {
         // Using fallback executor
+        if (!this.quickJS) {
+          throw new Error('JavaScript executor not initialized. Please try again.');
+        }
         const vm = this.quickJS.newRuntime().newContext();
         const result = vm.evalCode(sanitizedCode);
         
         if (result.error) {
           const executionTime = Date.now() - startTime;
+          const errorMessage = this.formatJavaScriptError(result.error);
           return {
             status: 'ERROR',
             output: '',
-            error: 'JavaScript execution failed',
+            error: errorMessage,
             executionTime
           };
         }
@@ -882,6 +1228,9 @@ output_text = captured_output.getvalue()
         output = (window as any).__nodejs_output || '';
       } else {
         // Using QuickJS
+        if (!this.quickJSRuntime) {
+          throw new Error('QuickJS runtime not initialized. Please try again.');
+        }
         // Create a new context from the persistent runtime
         const vm = this.quickJSRuntime.newContext();
         
@@ -904,10 +1253,11 @@ output_text = captured_output.getvalue()
             result.error.dispose();
             
             const executionTime = Date.now() - startTime;
+            const errorMessage = this.formatJavaScriptError(error);
             return {
               status: 'ERROR',
               output: '',
-              error: error,
+              error: errorMessage,
               executionTime
             };
           }
@@ -952,10 +1302,39 @@ output_text = captured_output.getvalue()
    */
   public cleanup(): void {
     try {
+      // Clean up QuickJS runtime more safely
       if (this.quickJSRuntime) {
-        this.quickJSRuntime.dispose();
-        this.quickJSRuntime = null;
+        try {
+          // Check if runtime is still valid before disposing
+          if (this.quickJSRuntime && typeof this.quickJSRuntime.dispose === 'function') {
+            this.quickJSRuntime.dispose();
+          }
+        } catch (disposeError) {
+          console.warn('Error disposing QuickJS runtime:', disposeError);
+        } finally {
+          this.quickJSRuntime = null;
+        }
       }
+      
+      // Clean up Pyodide if it exists
+      if (this.pyodide) {
+        try {
+          // Pyodide cleanup is usually automatic, but we can set it to null
+          this.pyodide = null;
+        } catch (pyodideError) {
+          console.warn('Error cleaning up Pyodide:', pyodideError);
+        }
+      }
+      
+      // Clean up JSCPP if it exists
+      if (this.jscpp) {
+        try {
+          this.jscpp = null;
+        } catch (jscppError) {
+          console.warn('Error cleaning up JSCPP:', jscppError);
+        }
+      }
+      
     } catch (error) {
       console.warn('Error during cleanup:', error);
     }

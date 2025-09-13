@@ -50,6 +50,7 @@ export async function GET(request: NextRequest) {
             id: true,
             title: true,
             points: true,
+            complexity: true,
           }
         }
       },

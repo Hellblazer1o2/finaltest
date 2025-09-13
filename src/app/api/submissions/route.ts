@@ -5,6 +5,26 @@ import { OnlineCodeExecutorNew } from '@/lib/onlineCodeExecutorNew'
 
 export const runtime = 'nodejs'
 
+// Helper function to get expected output for a specific language
+function getExpectedOutput(testCase: any, language: string): string {
+  const normalizedLang = language.toLowerCase()
+  if (['python', 'py'].includes(normalizedLang) && testCase.expectedOutputPython) {
+    return testCase.expectedOutputPython
+  }
+  if (['cpp', 'c++', 'cplusplus'].includes(normalizedLang) && testCase.expectedOutputCpp) {
+    return testCase.expectedOutputCpp
+  }
+  if (['java'].includes(normalizedLang) && testCase.expectedOutputJava) {
+    return testCase.expectedOutputJava
+  }
+  if (['nodejs', 'node.js', 'javascript', 'js'].includes(normalizedLang) && testCase.expectedOutputJavascript) {
+    return testCase.expectedOutputJavascript
+  }
+  
+  // Fallback to default expected output
+  return testCase.expectedOutput
+}
+
 export async function POST(request: NextRequest) {
   try {
     const token = request.cookies.get('auth-token')?.value
@@ -94,9 +114,12 @@ export async function POST(request: NextRequest) {
         totalExecutionTime = Math.max(totalExecutionTime, result.executionTime)
         maxMemoryUsage = Math.max(maxMemoryUsage, result.memoryUsage)
 
+        // Get the expected output for the current language
+        const expectedOutput = getExpectedOutput(testCase, language)
+
         // Strict output comparison - must match exactly after normalization
         const normalizedOutput = result.output.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n')
-        const normalizedExpected = testCase.expectedOutput.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+        const normalizedExpected = expectedOutput.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n')
         
         // Only accept if execution was successful AND output matches exactly
         const passed = result.status === 'SUCCESS' && 
@@ -116,16 +139,17 @@ export async function POST(request: NextRequest) {
         testResults.push({
           testCase: testResults.length + 1,
           passed,
-          expectedOutput: testCase.expectedOutput,
+          expectedOutput: expectedOutput,
           actualOutput: result.output,
           error: result.error,
         })
       } catch (error) {
         allPassed = false
+        const expectedOutput = getExpectedOutput(testCase, language)
         testResults.push({
           testCase: testResults.length + 1,
           passed: false,
-          expectedOutput: testCase.expectedOutput,
+          expectedOutput: expectedOutput,
           actualOutput: '',
           error: error instanceof Error ? error.message : 'Unknown error',
         })
@@ -154,12 +178,21 @@ export async function POST(request: NextRequest) {
       }
     }) === null : false
 
+    // Only analyze complexity for correct answers
+    let timeComplexity = null
+    let spaceComplexity = null
+    
+    if (allPassed) {
+      // TODO: Add complexity analysis here for correct answers
+      // For now, we'll leave it as null
+    }
+
     const executionResult = {
       status: finalStatus,
       executionTime: totalExecutionTime,
       memoryUsage: maxMemoryUsage,
-      timeComplexity: null,
-      spaceComplexity: null,
+      timeComplexity,
+      spaceComplexity,
       score,
       testResults,
     }

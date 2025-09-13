@@ -26,6 +26,7 @@ interface Submission {
     id: string
     title: string
     points: number
+    complexity: string | null
   }
 }
 
@@ -63,6 +64,30 @@ export default function AdminSubmissionsPage() {
     }
   }
 
+  const getDisplayStatus = (status: string) => {
+    switch (status) {
+      case 'ACCEPTED':
+        return 'Correct'
+      case 'WRONG_ANSWER':
+      case 'TIME_LIMIT_EXCEEDED':
+      case 'MEMORY_LIMIT_EXCEEDED':
+      case 'RUNTIME_ERROR':
+      case 'COMPILATION_ERROR':
+        return 'Incorrect'
+      default:
+        return status
+    }
+  }
+
+  const getStatusColor = (status: string) => {
+    const displayStatus = getDisplayStatus(status)
+    if (displayStatus === 'Correct') {
+      return 'bg-green-100 text-green-800'
+    } else {
+      return 'bg-red-100 text-red-800'
+    }
+  }
+
   const fetchSubmissions = useCallback(async () => {
     try {
       const params = new URLSearchParams()
@@ -94,24 +119,6 @@ export default function AdminSubmissionsPage() {
     return null
   }
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'ACCEPTED':
-        return 'bg-green-100 text-green-800'
-      case 'WRONG_ANSWER':
-        return 'bg-red-100 text-red-800'
-      case 'TIME_LIMIT_EXCEEDED':
-        return 'bg-yellow-100 text-yellow-800'
-      case 'MEMORY_LIMIT_EXCEEDED':
-        return 'bg-orange-100 text-orange-800'
-      case 'RUNTIME_ERROR':
-        return 'bg-purple-100 text-purple-800'
-      case 'COMPILATION_ERROR':
-        return 'bg-gray-100 text-gray-800'
-      default:
-        return 'bg-gray-100 text-gray-800'
-    }
-  }
 
   if (loading) {
     return (
@@ -177,12 +184,12 @@ export default function AdminSubmissionsPage() {
                   onChange={(e) => setFilters({ ...filters, status: e.target.value })}
                 >
                   <option value="">All Statuses</option>
-                  <option value="ACCEPTED">Accepted</option>
-                  <option value="WRONG_ANSWER">Wrong Answer</option>
-                  <option value="TIME_LIMIT_EXCEEDED">Time Limit Exceeded</option>
-                  <option value="MEMORY_LIMIT_EXCEEDED">Memory Limit Exceeded</option>
-                  <option value="RUNTIME_ERROR">Runtime Error</option>
-                  <option value="COMPILATION_ERROR">Compilation Error</option>
+                  <option value="ACCEPTED">Correct</option>
+                  <option value="WRONG_ANSWER">Incorrect</option>
+                  <option value="TIME_LIMIT_EXCEEDED">Incorrect</option>
+                  <option value="MEMORY_LIMIT_EXCEEDED">Incorrect</option>
+                  <option value="RUNTIME_ERROR">Incorrect</option>
+                  <option value="COMPILATION_ERROR">Incorrect</option>
                 </select>
               </div>
             </div>
@@ -268,7 +275,7 @@ export default function AdminSubmissionsPage() {
                             {submission.problem.title}
                           </div>
                           <div className="text-sm text-gray-500">
-                            {submission.problem.points} pts
+                            ID: {submission.problem.id} • {submission.problem.points} pts
                           </div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -276,14 +283,18 @@ export default function AdminSubmissionsPage() {
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap">
                           <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(submission.status)}`}>
-                            {submission.status}
+                            {getDisplayStatus(submission.status)}
                           </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                          <div>
-                            <div>Time: {submission.timeComplexity || 'N/A'}</div>
-                            <div>Space: {submission.spaceComplexity || 'N/A'}</div>
-                          </div>
+                          <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                            submission.problem.complexity === 'Easy' ? 'bg-green-100 text-green-800' :
+                            submission.problem.complexity === 'Medium' ? 'bg-yellow-100 text-yellow-800' :
+                            submission.problem.complexity === 'Hard' ? 'bg-red-100 text-red-800' :
+                            'bg-gray-100 text-gray-800'
+                          }`}>
+                            {submission.problem.complexity || 'N/A'}
+                          </span>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                           <div>

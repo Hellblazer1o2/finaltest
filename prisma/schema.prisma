@@ -6,8 +6,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider = "sqlite"
+  url      = "file:./dev.db"
 }
 
 enum UserRole {
@@ -64,7 +64,13 @@ model Problem {
   title       String
   description String
   skeletonCode String
+  // Multi-language skeleton code
+  skeletonCodePython String?
+  skeletonCodeCpp    String?
+  skeletonCodeJava   String?
+  skeletonCodeJavascript String?
   type        ProblemType @default(GENERAL)
+  complexity  String?     // e.g., "Easy", "Medium", "Hard"
   timeLimit   Int         @default(2000) // milliseconds
   memoryLimit Int         @default(128)  // MB
   points      Int         @default(100)
@@ -85,6 +91,11 @@ model TestCase {
   problemId String
   input     String
   expectedOutput String
+  // Multi-language expected outputs
+  expectedOutputPython String?
+  expectedOutputCpp    String?
+  expectedOutputJava   String?
+  expectedOutputJavascript String?
   isHidden  Boolean  @default(false)
   createdAt DateTime @default(now())
 

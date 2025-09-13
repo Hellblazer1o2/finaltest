@@ -13,6 +13,10 @@ interface Problem {
   title: string
   description: string
   skeletonCode: string
+  skeletonCodePython?: string
+  skeletonCodeCpp?: string
+  skeletonCodeJava?: string
+  skeletonCodeJavascript?: string
   type: string
   timeLimit: number
   memoryLimit: number
@@ -43,9 +47,10 @@ export default function ProblemPage() {
     }>
     error?: string
   } | null>(null)
-  const [activeTab, setActiveTab] = useState<'problem' | 'code' | 'test' | 'history'>('code')
+  const [activeTab, setActiveTab] = useState<'problem' | 'code' | 'test'>('code')
   const [showSuccessPopup, setShowSuccessPopup] = useState(false)
   const [showFailurePopup, setShowFailurePopup] = useState(false)
+  const [showTimeUpModal, setShowTimeUpModal] = useState(false)
   const [submissionResult, setSubmissionResult] = useState<{
     status: string
     score: number
@@ -80,13 +85,6 @@ export default function ProblemPage() {
   const [isDisqualified, setIsDisqualified] = useState(false)
   const [isClientSideExecution, setIsClientSideExecution] = useState(false)
   const [currentTime, setCurrentTime] = useState(new Date())
-  const [submissionHistory, setSubmissionHistory] = useState<Array<{
-    id: string
-    status: string
-    score: number
-    submittedAt: string
-    language: string
-  }>>([])
 
   // Helper function to get relative time
   const getRelativeTime = (dateString: string): string => {
@@ -126,13 +124,66 @@ export default function ProblemPage() {
     return 'python' // default fallback
   }
 
+  // Get skeleton code for the selected language
+  const getSkeletonCode = (language: string): string => {
+    if (!problem) return ''
+    
+    const normalizedLang = language.toLowerCase()
+    if (['python', 'py'].includes(normalizedLang) && problem.skeletonCodePython) {
+      return problem.skeletonCodePython
+    }
+    if (['cpp', 'c++', 'cplusplus'].includes(normalizedLang) && problem.skeletonCodeCpp) {
+      return problem.skeletonCodeCpp
+    }
+    if (['java'].includes(normalizedLang) && problem.skeletonCodeJava) {
+      return problem.skeletonCodeJava
+    }
+    if (['nodejs', 'node.js', 'javascript', 'js'].includes(normalizedLang) && problem.skeletonCodeJavascript) {
+      return problem.skeletonCodeJavascript
+    }
+    
+    // Fallback to default skeleton code
+    return problem.skeletonCode
+  }
+
+  // Reset code to skeleton
+  const resetCode = () => {
+    setCode(getSkeletonCode(selectedLanguage))
+  }
+
+  // Handle language change
+  const handleLanguageChange = (newLanguage: string) => {
+    setSelectedLanguage(newLanguage)
+    setCode(getSkeletonCode(newLanguage))
+  }
+
+  // Get expected output for a specific language
+  const getExpectedOutput = (testCase: any, language: string): string => {
+    const normalizedLang = language.toLowerCase()
+    if (['python', 'py'].includes(normalizedLang) && testCase.expectedOutputPython) {
+      return testCase.expectedOutputPython
+    }
+    if (['cpp', 'c++', 'cplusplus'].includes(normalizedLang) && testCase.expectedOutputCpp) {
+      return testCase.expectedOutputCpp
+    }
+    if (['java'].includes(normalizedLang) && testCase.expectedOutputJava) {
+      return testCase.expectedOutputJava
+    }
+    if (['nodejs', 'node.js', 'javascript', 'js'].includes(normalizedLang) && testCase.expectedOutputJavascript) {
+      return testCase.expectedOutputJavascript
+    }
+    
+    // Fallback to default expected output
+    return testCase.expectedOutput
+  }
+
   const fetchProblem = useCallback(async () => {
     try {
       const response = await fetch(`/api/problems/${params.id}`)
       if (response.ok) {
         const data = await response.json()
         setProblem(data.problem)
-        setCode(data.problem.skeletonCode)
+        setCode(getSkeletonCode(selectedLanguage))
       } else {
         router.push('/dashboard')
       }
@@ -142,7 +193,7 @@ export default function ProblemPage() {
     } finally {
       setLoading(false)
     }
-  }, [params.id, router])
+  }, [params.id, router, selectedLanguage])
 
   const fetchActiveRound = useCallback(async () => {
     try {
@@ -184,17 +235,6 @@ export default function ProblemPage() {
     }
   }, [])
 
-  const fetchSubmissionHistory = useCallback(async () => {
-    try {
-      const response = await fetch(`/api/problems/${params.id}/submissions`)
-      if (response.ok) {
-        const data = await response.json()
-        setSubmissionHistory(data.submissions || [])
-      }
-    } catch (error) {
-      console.error('Failed to fetch submission history:', error)
-    }
-  }, [params.id])
 
   useEffect(() => {
     if (!user) {
@@ -206,12 +246,19 @@ export default function ProblemPage() {
     fetchActiveRound()
     fetchUserStatus()
     fetchNextProblem()
-    fetchSubmissionHistory()
   }, [params.id, user, router, fetchProblem, fetchActiveRound, fetchUserStatus, fetchNextProblem])
 
   const handleWarningAdded = () => {
     // Refresh user status to check if disqualified
     fetchUserStatus()
+  }
+
+  const handleTimeUp = () => {
+    setShowTimeUpModal(true)
+    // Redirect after 5 seconds
+    setTimeout(() => {
+      router.push('/dashboard')
+    }, 5000)
   }
 
   // Check for disqualification when user status updates
@@ -282,9 +329,8 @@ export default function ProblemPage() {
       })
     } finally {
       setSubmitting(false)
-      // Refresh user status and submission history after submission
+      // Refresh user status after submission
       fetchUserStatus()
-      fetchSubmissionHistory()
     }
   }
 
@@ -299,45 +345,100 @@ export default function ProblemPage() {
       if (isClientSideSupported(selectedLanguage)) {
         setIsClientSideExecution(true)
         
-        // Use client-side execution
+        // Use client-side execution with proper test validation
         const clientLanguage = getClientSideLanguage(selectedLanguage)
         let clientResult: ClientExecutionResult
         
         try {
           clientResult = await runCodeSafe(clientLanguage, code)
+          
+          // Fetch test cases for validation
+          const testResponse = await fetch(`/api/problems/${problem.id}`)
+          if (testResponse.ok) {
+            const testData = await testResponse.json()
+            const testCases = testData.problem.testCases || []
+            
+            if (testCases.length > 0) {
+              // Use the first visible test case for validation
+              const firstTestCase = testCases[0]
+              
+              // Get the expected output for the current language
+              const expectedOutput = getExpectedOutput(firstTestCase, selectedLanguage)
+              
+              // Normalize outputs for comparison
+              const normalizedOutput = clientResult.output.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+              const normalizedExpected = expectedOutput.trim().replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+              
+              // Check if the output matches exactly
+              const passed = clientResult.status === 'SUCCESS' && 
+                            normalizedOutput === normalizedExpected &&
+                            !clientResult.error
+              
+              console.log('Client-side test validation:', {
+                output: normalizedOutput,
+                expected: normalizedExpected,
+                passed,
+                status: clientResult.status,
+                hasError: !!clientResult.error
+              })
+              
+              const convertedResult = {
+                status: passed ? 'TEST_COMPLETED' : 'ERROR',
+                executionTime: clientResult.executionTime,
+                memoryUsage: 0,
+                output: clientResult.output,
+                error: clientResult.error,
+                testResults: [{
+                  testCase: 1,
+                  passed,
+                  expectedOutput: expectedOutput,
+                  actualOutput: clientResult.output || '(no output)',
+                  error: clientResult.error
+                }]
+              }
+              
+              setResult(convertedResult)
+            } else {
+              // No test cases available, just show execution result
+              const convertedResult = {
+                status: clientResult.status === 'SUCCESS' ? 'TEST_COMPLETED' : 'ERROR',
+                executionTime: clientResult.executionTime,
+                memoryUsage: 0,
+                output: clientResult.output,
+                error: clientResult.error,
+                testResults: [{
+                  testCase: 1,
+                  passed: clientResult.status === 'SUCCESS',
+                  expectedOutput: 'Code executed successfully',
+                  actualOutput: clientResult.output || '(no output)',
+                  error: clientResult.error
+                }]
+              }
+              
+              setResult(convertedResult)
+            }
+          } else {
+            throw new Error('Failed to fetch test cases')
+          }
         } catch (error) {
           console.error('Client-side execution failed:', error)
-          clientResult = {
+          const convertedResult = {
             status: 'ERROR',
+            executionTime: 0,
+            memoryUsage: 0,
             output: '',
             error: `Client-side execution failed: ${error instanceof Error ? error.message : 'Unknown error'}`,
-            executionTime: 0
+            testResults: [{
+              testCase: 1,
+              passed: false,
+              expectedOutput: 'Code should execute without errors',
+              actualOutput: '(no output)',
+              error: error instanceof Error ? error.message : 'Unknown error'
+            }]
           }
+          
+          setResult(convertedResult)
         }
-        
-        // Convert client result to match expected format
-        const convertedResult = {
-          status: clientResult.status === 'SUCCESS' ? 'TEST_COMPLETED' : 'ERROR',
-          executionTime: clientResult.executionTime,
-          memoryUsage: 0, // Client-side doesn't track memory
-          output: clientResult.output,
-          error: clientResult.error,
-          testResults: clientResult.status === 'SUCCESS' ? [{
-            testCase: 1,
-            passed: true,
-            expectedOutput: 'Code executed successfully',
-            actualOutput: clientResult.output || '(no output)',
-            error: clientResult.error || undefined
-          }] : [{
-            testCase: 1,
-            passed: false,
-            expectedOutput: 'Code should execute without errors',
-            actualOutput: clientResult.output || '(no output)',
-            error: clientResult.error
-          }]
-        }
-        
-        setResult(convertedResult)
       } else {
         setIsClientSideExecution(false)
         
@@ -441,10 +542,7 @@ export default function ProblemPage() {
               {roundEndTime && (
                 <RoundTimer 
                   endTime={roundEndTime} 
-                  onTimeUp={() => {
-                    alert('Time is up! The round has ended.')
-                    router.push('/dashboard')
-                  }}
+                  onTimeUp={handleTimeUp}
                 />
               )}
               {userStatus && userStatus.warnings > 0 && (
@@ -513,6 +611,10 @@ export default function ProblemPage() {
                             Your {selectedLanguage} code runs directly in your browser using WebAssembly. 
                             No server requests needed - faster and more private!
                           </p>
+                          <p className="text-sm text-yellow-700 mt-2 font-medium">
+                            ⚠️ Note: Client-side testing validates against the first test case only. 
+                            Use "Submit" for complete validation against all test cases.
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -547,16 +649,6 @@ export default function ProblemPage() {
                     >
                       Test Results
                     </button>
-                    <button
-                      onClick={() => setActiveTab('history')}
-                      className={`py-4 px-1 border-b-2 font-medium text-sm ${
-                        activeTab === 'history'
-                          ? 'border-indigo-500 text-indigo-600'
-                          : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                      }`}
-                    >
-                      Submission History
-                    </button>
                   </nav>
                 </div>
 
@@ -568,7 +660,7 @@ export default function ProblemPage() {
                         <label className="text-sm font-medium text-gray-700">Programming Language:</label>
                         <select
                           value={selectedLanguage}
-                          onChange={(e) => setSelectedLanguage(e.target.value)}
+                          onChange={(e) => handleLanguageChange(e.target.value)}
                           className="px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 text-gray-900"
                         >
                           <option value="javascript">JavaScript</option>
@@ -576,6 +668,13 @@ export default function ProblemPage() {
                           <option value="java">Java</option>
                           <option value="cpp">C++</option>
                         </select>
+                        <button
+                          onClick={resetCode}
+                          className="px-3 py-2 bg-gray-100 text-gray-700 border border-gray-300 rounded-md hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-gray-500 text-sm font-medium"
+                          title="Reset to skeleton code"
+                        >
+                          🔄 Reset
+                        </button>
                         {isClientSideSupported(selectedLanguage) && (
                           <div className="flex items-center space-x-2">
                             <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
@@ -809,71 +908,6 @@ export default function ProblemPage() {
                   </div>
                 )}
 
-                {/* Submission History */}
-                {activeTab === 'history' && (
-                  <div className="p-6">
-                    <div className="mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Your Submission History</h3>
-                      <p className="text-sm text-gray-600">
-                        View all your previous submissions for this problem with timestamps.
-                      </p>
-                    </div>
-                    
-                    {submissionHistory.length === 0 ? (
-                      <div className="text-center py-12">
-                        <div className="text-gray-400 text-4xl mb-4">📝</div>
-                        <h3 className="text-lg font-medium text-gray-900 mb-2">
-                          No submissions yet
-                        </h3>
-                        <p className="text-gray-500">
-                          Submit your first solution to see it here.
-                        </p>
-                      </div>
-                    ) : (
-                      <div className="space-y-4">
-                        {submissionHistory.map((submission, index) => (
-                          <div
-                            key={submission.id}
-                            className={`border rounded-lg p-4 ${
-                              submission.status === 'ACCEPTED'
-                                ? 'bg-green-50 border-green-200'
-                                : 'bg-red-50 border-red-200'
-                            }`}
-                          >
-                            <div className="flex items-center justify-between mb-2">
-                              <div className="flex items-center space-x-3">
-                                <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
-                                  submission.status === 'ACCEPTED'
-                                    ? 'bg-green-100 text-green-800'
-                                    : 'bg-red-100 text-red-800'
-                                }`}>
-                                  {submission.status}
-                                </span>
-                                <span className="text-sm text-gray-600">
-                                  {submission.language}
-                                </span>
-                                <span className="text-sm font-medium text-gray-900">
-                                  {submission.score} points
-                                </span>
-                              </div>
-                              <div className="text-right">
-                                <div className="text-sm font-medium text-gray-900">
-                                  {new Date(submission.submittedAt).toLocaleString()}
-                                </div>
-                                <div className="text-xs text-gray-500">
-                                  {getRelativeTime(submission.submittedAt)}
-                                </div>
-                              </div>
-                            </div>
-                            <div className="text-xs text-gray-500">
-                              Submission #{submissionHistory.length - index}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
               </div>
             </div>
           </div>
@@ -944,6 +978,26 @@ export default function ProblemPage() {
               className="bg-red-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-red-700 transition-colors"
             >
               Try Again
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Time Up Modal */}
+      {showTimeUpModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 animate-fadeIn">
+          <div className="bg-white rounded-lg p-8 max-w-md mx-4 text-center animate-scaleIn">
+            <div className="text-6xl mb-4 animate-bounce">⏰</div>
+            <h3 className="text-2xl font-bold text-red-600 mb-2 animate-pulse">Time's Up!</h3>
+            <p className="text-gray-600 mb-4">The round has ended. You will be redirected to the dashboard.</p>
+            <div className="text-sm text-gray-500 mb-4">
+              Redirecting in 5 seconds...
+            </div>
+            <button
+              onClick={() => router.push('/dashboard')}
+              className="bg-indigo-600 text-white px-6 py-3 rounded-lg font-medium hover:bg-indigo-700 transition-colors"
+            >
+              Go to Dashboard
             </button>
           </div>
         </div>
