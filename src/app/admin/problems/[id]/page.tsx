@@ -518,12 +518,12 @@ export default function EditProblemPage() {
                               )}
                             </div>
 
-                            <div>
-                              <h5 className="font-medium text-gray-700 mb-2">Code:</h5>
-                              <pre className="bg-gray-50 p-3 rounded text-sm overflow-x-auto">
-                                <code>{submission.code}</code>
-                              </pre>
-                            </div>
+                              <div>
+                                <h5 className="font-medium text-gray-700 mb-2">Code:</h5>
+                                <pre className="bg-gray-900 text-green-400 p-4 rounded-lg overflow-x-auto text-sm font-mono">
+                                  <code>{submission.code}</code>
+                                </pre>
+                              </div>
                           </div>
                         ))}
                       </div>

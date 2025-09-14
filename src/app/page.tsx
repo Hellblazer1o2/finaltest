@@ -4,6 +4,7 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import Link from 'next/link'
+import { WavyBackground } from '@/components/ui/wavy-background'
 
 export default function Home() {
   const { user, loading } = useAuth()
@@ -24,59 +25,46 @@ export default function Home() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-white">
-      <div className="container mx-auto px-4 py-16">
-        <div className="text-center">
-          <h1 className="text-5xl font-bold text-gray-900 mb-6">
-            Welcome to <span className="text-indigo-600">IdeaRpit</span>
+    <div className="min-h-screen">
+      <WavyBackground 
+        className="min-h-screen"
+        backgroundFill="white"
+        colors={["#3b82f6", "#1d4ed8", "#1e40af"]}
+        waveOpacity={0.3}
+      >
+        <div className="flex flex-col items-center justify-center px-4 text-center py-16 min-h-screen">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl xl:text-7xl text-gray-900 font-bold mb-6 sm:mb-8">
+            Welcome to <span className="text-indigo-600">Ignium IDE</span>
           </h1>
-          <p className="text-xl text-gray-600 mb-8 max-w-2xl mx-auto">
-            A competitive programming platform with advanced judging system. 
-            Solve problems, compete with others, and improve your coding skills.
+          <p className="text-base sm:text-lg md:text-xl lg:text-2xl text-gray-700 font-normal mb-8 sm:mb-12 max-w-4xl leading-relaxed">
+            A Problem Solving Platform Created with ❤️ by Innovare Technical Club For TECHFEST@25
           </p>
-          
-          <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
+          <div className="flex flex-col sm:flex-row gap-4 sm:gap-6 mb-12">
             <Link
               href="/login"
-              className="bg-indigo-600 text-white px-8 py-3 rounded-lg font-semibold hover:bg-indigo-700 transition-colors"
+              className="px-6 sm:px-8 py-3 sm:py-4 bg-indigo-600 text-white font-semibold rounded-lg hover:bg-indigo-700 transition-colors duration-200 text-base sm:text-lg shadow-lg hover:shadow-xl"
             >
               Sign In
             </Link>
             <Link
               href="/register"
-              className="border border-indigo-600 text-indigo-600 px-8 py-3 rounded-lg font-semibold hover:bg-indigo-50 transition-colors"
+              className="px-6 sm:px-8 py-3 sm:py-4 bg-white text-indigo-600 font-semibold rounded-lg hover:bg-gray-50 transition-colors duration-200 text-base sm:text-lg border-2 border-indigo-600 shadow-lg hover:shadow-xl"
             >
               Create Account
             </Link>
           </div>
-
-          <div className="grid md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="text-indigo-600 text-3xl mb-4">⚡</div>
-              <h3 className="text-xl font-semibold mb-2">Fast Judging</h3>
-              <p className="text-gray-600">
-                Advanced judging system that evaluates both correctness and efficiency of your solutions.
-              </p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="text-indigo-600 text-3xl mb-4">🔒</div>
-              <h3 className="text-xl font-semibold mb-2">Secure Environment</h3>
-              <p className="text-gray-600">
-                Focused coding environment with tab restrictions to ensure fair competition.
-              </p>
-            </div>
-            
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <div className="text-indigo-600 text-3xl mb-4">🏆</div>
-              <h3 className="text-xl font-semibold mb-2">Smart Scoring</h3>
-              <p className="text-gray-600">
-                Get bonus points for being the first to solve or having the most efficient solution.
-              </p>
-            </div>
+          
+          {/* Watermark - Only visible on home page */}
+          <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 text-center">
+            <p className="text-sm text-gray-500 mb-1">
+              @VCETECHFEST25
+            </p>
+            <p className="text-xs text-gray-400">
+              Created with ❤️ by Innovare Technical Club
+            </p>
           </div>
         </div>
-      </div>
+      </WavyBackground>
     </div>
   )
 }
